@@ -1,7 +1,8 @@
 #include <gltf/file_reader.h>
 
-#include <iostream>	
+#include <fstream>	
 #include <string>
+#include <sstream>
 
 #include "../json_utils.h"
 
@@ -22,6 +23,10 @@
 
 namespace glTF
 {
+	static const std::uint32_t GLTF_MAGIC_VALUE = 0x46546C67;
+	static const std::uint32_t JSON_TYPE_VALUE = 0x4E4F534A;
+	static const std::uint32_t BIN_TYPE_VALUE = 0x004E4942;
+
 	File read_from_stream(std::istream& stream)
 	{
 		glTF::File file;
@@ -56,6 +61,157 @@ namespace glTF
 		file.extras = json_try_dump(root_object, "extras");
 
 		return file;
+	}
+
+	static bool is_little_endian()
+	{
+		unsigned int all_but_low_byte = 0xFU ^ (~0x0U);
+		std::uint8_t low_byte = *reinterpret_cast<std::uint8_t*>(&all_but_low_byte);
+
+		return low_byte != 0;
+	}
+
+	static std::uint32_t read_uint32(std::istream& stream)
+	{
+		const bool little_endian = is_little_endian();
+		char bytes[4]{0};
+		stream.read(bytes, 4);
+
+		std::uint32_t value = 0;
+
+		for (int i = 0; i < 4; i++)
+		{
+			value |= bytes[little_endian ? i : 3 - i] << 8 * i;
+		}
+
+		return value;
+	}
+
+	static File read_json_chunk(std::istream& stream, std::uint32_t length)
+	{
+		std::vector<char> data;
+		data.resize(length);
+		stream.read(data.data(), length);
+
+		std::stringstream json_stream(std::string(data.begin(), data.end()));
+		return read_from_stream(json_stream);
+	}
+
+	static BinaryBuffer read_binary_chunk(std::istream& stream, std::uint32_t length)
+	{
+		BinaryBuffer buffer;
+		buffer.bytes.resize(length);
+		stream.read(reinterpret_cast<char*>(buffer.bytes.data()), length);
+
+		return buffer;
+	}
+
+	File read_from_stream_binary(std::istream& stream)
+	{
+		std::uint32_t magic = read_uint32(stream);
+		if (magic != GLTF_MAGIC_VALUE)
+		{
+			throw GLTFReadException("Magic value doesn't match gltf file");
+		}
+
+		std::uint32_t version = read_uint32(stream);
+		if (version != 2)
+		{
+			throw GLTFReadException("Only glTF version 2 is supported");
+		}
+
+		std::uint32_t length = read_uint32(stream);
+		(void)length;
+
+		std::optional<File> file;
+		std::vector<BinaryBuffer> binary_buffers;
+
+		while (stream)
+		{
+			// read chunk header
+			std::uint32_t chunk_length = read_uint32(stream);
+			std::uint32_t chunk_type = read_uint32(stream);
+
+			// read chunk depending on type
+			if (chunk_type == BIN_TYPE_VALUE)
+			{
+				binary_buffers.emplace_back(read_binary_chunk(stream, chunk_length));
+			}
+			else if (chunk_type == JSON_TYPE_VALUE && !file.has_value())
+			{
+				file = read_json_chunk(stream, chunk_length);
+			}
+			else
+			{
+				stream.seekg(chunk_length, std::ios::cur);
+			}
+		}
+
+		if (!file.has_value())
+		{
+			throw GLTFReadException("No JSON chunks were read");
+		}
+
+		file->binaryBuffers = std::move(binary_buffers);
+
+		return file.value();
+	}
+
+	static bool ends_with(const std::string& source, const std::string& postfix)
+	{
+		std::size_t postfix_size = postfix.size();
+		std::size_t source_index_start = source.size() - postfix_size;
+
+		if (source.size() < postfix_size)
+		{
+			return false;
+		}
+
+		for (std::size_t i = 0; i < postfix_size; i++)
+		{
+			std::size_t source_index = source_index_start + i;
+
+			if (source.at(source_index) != postfix.at(i))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	File read_from_path_binary(const std::string& path)
+	{
+		std::fstream file_stream(path, std::ios::in | std::ios::binary);
+
+		if (!file_stream)
+		{
+			throw GLTFReadException("File with path: " + path + " not found");
+		}
+
+		return read_from_stream_binary(file_stream);
+	}
+
+	File read_from_path_json(const std::string& path)
+	{
+		std::fstream file_stream(path);
+
+		if (!file_stream)
+		{
+			throw GLTFReadException("File with path: " + path + " not found");
+		}
+
+		return read_from_stream(file_stream);
+	}
+
+	File read_from_path(const std::string& path)
+	{
+		if (ends_with(path, "glb"))
+		{
+			return read_from_path_binary(path);
+		}
+
+		return read_from_path_json(path);
 	}
 }
 

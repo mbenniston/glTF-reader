@@ -4,7 +4,7 @@ A C++ library that reads in glTF files and deserializes them into more strongly 
 
 Features:
 
-- Reading of pure json glTF files
+- Reading of glTF and glb files
 - 1 to 1 data mirroring of glTF files
 
 Supported readable data:
@@ -27,7 +27,7 @@ Supported readable data:
 
 Missing Features:
 
-- glb / binary gltf files
+- Binary file detection (reading first few bytes could be a solution)
 - Unit tests, would require significant effort to check every edge case of every field.
 - CMake exports
 - Optional file validation

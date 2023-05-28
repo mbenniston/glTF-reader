@@ -17,6 +17,7 @@
 #include "animation.h"
 #include "camera.h"
 #include "skin.h"
+#include "binary_buffer.h"
 
 namespace glTF
 {
@@ -41,5 +42,7 @@ namespace glTF
 		std::optional<std::vector<Texture>> textures;
 		std::optional<std::string> extensions;
 		std::optional<std::string> extras;
+
+		std::vector<BinaryBuffer> binaryBuffers;
 	};
 }
