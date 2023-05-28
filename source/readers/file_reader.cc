@@ -81,7 +81,7 @@ namespace glTF
 
 		for (int i = 0; i < 4; i++)
 		{
-			value |= bytes[little_endian ? i : 3 - i] << 8 * i;
+			value |= static_cast<std::uint8_t>(bytes[little_endian ? i : 3 - i]) << 8 * i;
 		}
 
 		return value;
