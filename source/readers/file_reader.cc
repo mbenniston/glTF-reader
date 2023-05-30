@@ -30,35 +30,43 @@ namespace glTF
 	File read_from_stream(std::istream& stream)
 	{
 		glTF::File file;
-		json root_object = json::parse(stream);
-
-		if (root_object.contains("extensionsUsed"))
+	
+		try
 		{
-			file.extensionsUsed = json_try_get_vector<std::string>(root_object, "extensionsUsed");
-		}
+			json root_object = json::parse(stream);
 
-		if (root_object.contains("extensionsRequired"))
+			if (root_object.contains("extensionsUsed"))
+			{
+				file.extensionsUsed = json_try_get_vector<std::string>(root_object, "extensionsUsed");
+			}
+
+			if (root_object.contains("extensionsRequired"))
+			{
+				file.extensionsRequired = json_try_get_vector<std::string>(root_object, "extensionsRequired");
+			}
+
+			file.accessors = read_accessors(root_object);
+			file.animations = read_animations(root_object);
+			file.asset = read_asset(root_object);
+			file.buffers = read_buffers(root_object);
+			file.bufferViews = read_buffer_views(root_object);
+			file.cameras = read_cameras(root_object);
+			file.images = read_images(root_object);
+			file.materials = read_materials(root_object);
+			file.meshes = read_meshes(root_object);
+			file.nodes = read_nodes(root_object);
+			file.samplers = read_samplers(root_object);
+			file.textures = read_textures(root_object);
+			file.scene = read_default_scene(root_object);
+			file.scenes = read_scenes(root_object);
+			file.skins = read_skins(root_object);
+			file.extensions = json_try_dump(root_object, "extensions");
+			file.extras = json_try_dump(root_object, "extras");
+		}
+		catch (const json::exception& json_exception)
 		{
-			file.extensionsRequired = json_try_get_vector<std::string>(root_object, "extensionsRequired");
+			throw GLTFReadException(std::string("Failed to parse json: ") + json_exception.what());
 		}
-
-		file.accessors = read_accessors(root_object);
-		file.animations = read_animations(root_object);
-		file.asset = read_asset(root_object);
-		file.buffers = read_buffers(root_object);
-		file.bufferViews = read_buffer_views(root_object);
-		file.cameras = read_cameras(root_object);
-		file.images = read_images(root_object);
-		file.materials = read_materials(root_object);
-		file.meshes = read_meshes(root_object);
-		file.nodes = read_nodes(root_object);
-		file.samplers = read_samplers(root_object);
-		file.textures = read_textures(root_object);
-		file.scene = read_default_scene(root_object);
-		file.scenes = read_scenes(root_object);
-		file.skins = read_skins(root_object);
-		file.extensions = json_try_dump(root_object, "extensions");
-		file.extras = json_try_dump(root_object, "extras");
 
 		return file;
 	}
