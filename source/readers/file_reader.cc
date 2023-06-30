@@ -3,6 +3,7 @@
 #include <fstream>	
 #include <string>
 #include <sstream>
+#include <array>
 
 #include "../json_utils.h"
 
@@ -71,27 +72,18 @@ namespace glTF
 		return file;
 	}
 
-	static bool is_little_endian()
-	{
-		unsigned int all_but_low_byte = 0xFU ^ (~0x0U);
-		std::uint8_t low_byte = *reinterpret_cast<std::uint8_t*>(&all_but_low_byte);
-
-		return low_byte != 0;
-	}
-
 	static std::uint32_t read_uint32(std::istream& stream)
 	{
-		const bool little_endian = is_little_endian();
-		char bytes[4]{0};
-		stream.read(bytes, 4);
+        std::array<std::uint8_t, 4> buffer;
+        std::uint32_t value = 0;
 
-		std::uint32_t value = 0;
-
-		for (int i = 0; i < 4; i++)
-		{
-			value |= static_cast<std::uint8_t>(bytes[little_endian ? i : 3 - i]) << 8 * i;
-		}
-
+        stream.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+    
+        value |= std::uint32_t{buffer[0]};
+        value |= std::uint32_t{buffer[1]} << 8;
+        value |= std::uint32_t{buffer[2]} << 16;
+        value |= std::uint32_t{buffer[3]} << 24;
+        
 		return value;
 	}
 

@@ -137,7 +137,7 @@ namespace glTF
 
 	inline std::optional<std::string> json_try_dump(json object, const std::string& key)
 	{
-		const auto dump = [](json object) { return object.dump(); };
+		const auto dump = [](json object_to_dump) { return object_to_dump.dump(); };
 
 		return optional_map<json, std::string>(json_try_get<json>(object, key), dump);
 	}
